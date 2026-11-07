@@ -13,6 +13,11 @@ Build a version containing this change, then add the following line to the
 EDEN_NX2_STUTTER_TRACE=1
 ```
 
+On Windows, `tools/nx2/Start-Lichii-Stutter-Debug.cmd` can instead be copied
+next to the built `lichii.exe`. It sets the trace variable, starts the emulator,
+and copies the active log to `scene-stutter-log.txt` after the window closes.
+The copy is overwritten on each launch, so retain a log before another run.
+
 Run the same screen/area transition twice, first on entry and then on return.
 Keep shader caches, game settings, and save data unchanged. Close the emulator
 before editing the switch file; it is read on process startup. For an optional
