@@ -1670,6 +1670,12 @@ std::unique_ptr<GraphicsPipeline> PipelineCache::CreateGraphicsPipeline(
             return nullptr;
         }
 
+        static const bool trace_stutters = [] {
+            const char* value = std::getenv("EDEN_NX2_STUTTER_TRACE");
+            return value != nullptr && value[0] == '1';
+        }();
+        const auto translation_begin = trace_stutters ? std::chrono::steady_clock::now()
+                                                      : std::chrono::steady_clock::time_point{};
         const u32 cfg_offset{static_cast<u32>(env.StartAddress() + sizeof(Shader::ProgramHeader))};
         Shader::Maxwell::Flow::CFG cfg(env, pools.flow_block, cfg_offset, index == 0);
         if (!uses_vertex_a || index != 1) {
@@ -1680,6 +1686,17 @@ std::unique_ptr<GraphicsPipeline> PipelineCache::CreateGraphicsPipeline(
             auto& program_va{programs[0]};
             auto program_vb{TranslateProgram(pools.inst, pools.block, env, cfg, host_info)};
             programs[index] = MergeDualVertexPrograms(program_va, program_vb, env);
+        }
+
+        if (trace_stutters) {
+            const auto elapsed = std::chrono::steady_clock::now() - translation_begin;
+            if (elapsed >= std::chrono::milliseconds{16}) {
+                LOG_INFO(Render_Vulkan,
+                         "Scene stutter shader translation: pipeline={:016x} stage={} "
+                         "shader={:016x} time_ms={:.2f}",
+                         key.Hash(), index, key.unique_hashes[index],
+                         std::chrono::duration<double, std::milli>(elapsed).count());
+            }
         }
 
         if (const auto edits = Shader::Optimization::ApplyOotVisualWorkaround(

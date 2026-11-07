@@ -1851,6 +1851,18 @@ private:
                 m_stats.frame_us += frame;
                 m_stats.max_frame_us = (std::max)(m_stats.max_frame_us, frame);
                 m_stats.hitches += frame > 100'000 ? 1 : 0;
+                static const bool trace_stutters = [] {
+                    const char* value = std::getenv("EDEN_NX2_STUTTER_TRACE");
+                    return value != nullptr && value[0] == '1';
+                }();
+                if (trace_stutters && frame >= 50'000) {
+                    LOG_INFO(Service,
+                             "Scene stutter guest present: frame={} gap_ms={:.2f} "
+                             "fence_ms={:.2f} composite_ms={:.2f} pace_ms={:.2f}",
+                             m_presents, frame / 1000.0, to_us(waited - entered) / 1000.0,
+                             to_us(composited - waited) / 1000.0,
+                             to_us(paced - composited) / 1000.0);
+                }
             }
             m_stats.last_present = entered;
             if (++m_stats.presents == 600) {

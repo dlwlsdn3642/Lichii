@@ -250,6 +250,12 @@ struct GPU::Impl {
                      raster_area.start_address, raster_area.end_address,
                      reads.load(std::memory_order_relaxed));
         }
+        static const bool trace_stutters = [] {
+            const char* value = std::getenv("EDEN_NX2_STUTTER_TRACE");
+            return value != nullptr && value[0] == '1';
+        }();
+        const auto read_begin = trace_stutters ? std::chrono::steady_clock::now()
+                                              : std::chrono::steady_clock::time_point{};
         const u64 fence = RequestSyncOperation([this, raster_area]() {
             // Apply collected guest writes before downloading GPU data over guest memory.
             InvalidateGPUCache();
@@ -257,6 +263,15 @@ struct GPU::Impl {
         });
         gpu_thread.TickGPU(is_async);
         WaitForSyncOperation(fence);
+        if (trace_stutters) {
+            const auto elapsed = std::chrono::steady_clock::now() - read_begin;
+            if (elapsed >= std::chrono::milliseconds{16}) {
+                LOG_INFO(HW_GPU, "Scene stutter CPU readback: address={:#x} size={} time_ms={:.2f}",
+                         raster_area.start_address,
+                         raster_area.end_address - raster_area.start_address,
+                         std::chrono::duration<double, std::milli>(elapsed).count());
+            }
+        }
         return raster_area;
     }
 

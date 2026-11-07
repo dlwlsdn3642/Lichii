@@ -883,10 +883,19 @@ bool GraphicsPipeline::ConfigureDraw(const RescalingPushConstant& rescaling,
         scheduler.Record([this](vk::CommandBuffer) {
             const auto begin = std::chrono::steady_clock::now();
             build->Wait(!worker_only_build);
-            hold_time_ns.fetch_add(std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                       std::chrono::steady_clock::now() - begin)
-                                       .count(),
-                                   std::memory_order::relaxed);
+            const auto elapsed = std::chrono::steady_clock::now() - begin;
+            hold_time_ns.fetch_add(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count(),
+                std::memory_order::relaxed);
+            static const bool trace_stutters = [] {
+                const char* value = std::getenv("EDEN_NX2_STUTTER_TRACE");
+                return value != nullptr && value[0] == '1';
+            }();
+            if (trace_stutters && elapsed >= std::chrono::milliseconds{16}) {
+                LOG_INFO(Render_Vulkan,
+                         "Scene stutter pipeline wait: pipeline={:016x} time_ms={:.2f}",
+                         key.Hash(), std::chrono::duration<double, std::milli>(elapsed).count());
+            }
         });
     }
     const bool is_rescaling{texture_cache.IsRescaling()};

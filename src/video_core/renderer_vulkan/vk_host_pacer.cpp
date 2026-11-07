@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 #include "common/logging.h"
 #include "video_core/nx2_debug_control.h"
@@ -172,12 +173,22 @@ void HostPacer::NoteShown(u64 id, Clock::time_point shown, bool was_lost) {
     if (entry) {
         latency_sum_ms += Ms{shown - entry->submitted}.count();
     }
-    if (last_shown && last_shown_id + 1 == id) {
+    if (last_shown) {
         const double interval = static_cast<double>(Ns{shown - *last_shown}.count());
-        interval_sum_ms += interval / 1e6;
-        interval_max_ms = (std::max)(interval_max_ms, interval / 1e6);
-        const auto count = std::clamp<s64>(std::llround(interval / refresh_ns), 0, 5);
-        ++refreshes_shown[static_cast<size_t>(count)];
+        static const bool trace_stutters = [] {
+            const char* value = std::getenv("EDEN_NX2_STUTTER_TRACE");
+            return value != nullptr && value[0] == '1';
+        }();
+        if (trace_stutters && interval >= 75e6) {
+            LOG_INFO(Render_Vulkan, "Scene stutter host present: id={} gap_ms={:.2f} skipped_ids={}",
+                     id, interval / 1e6, id > last_shown_id ? id - last_shown_id - 1 : 0);
+        }
+        if (last_shown_id + 1 == id) {
+            interval_sum_ms += interval / 1e6;
+            interval_max_ms = (std::max)(interval_max_ms, interval / 1e6);
+            const auto count = std::clamp<s64>(std::llround(interval / refresh_ns), 0, 5);
+            ++refreshes_shown[static_cast<size_t>(count)];
+        }
     }
     // Follow the refresh grid: snap to the refresh this was shown at and correct the phase a
     // little, so the wake-up noise of the wait does not move the targets.
