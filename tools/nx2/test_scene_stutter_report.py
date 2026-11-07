@@ -9,7 +9,7 @@ from scene_stutter_report import Event, parse_line, related_events, render
 class SceneStutterReportTests(unittest.TestCase):
     def test_guest_present(self):
         event = parse_line(
-            "[12.500123] Service <Info> Scene stutter guest present: "
+            "[  12.500123] Service <Info> Scene stutter guest present: "
             "frame=300 gap_ms=180.00 fence_ms=1.50 composite_ms=2.00 pace_ms=0.00"
         )
         self.assertEqual(event, Event(12.500123, "guest", 180, "300"))

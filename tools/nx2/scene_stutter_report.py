@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 
 
-TIME = re.compile(r"^\[(\d+(?:\.\d+)?)\]")
+TIME = re.compile(r"^\[\s*(\d+(?:\.\d+)?)\]")
 EVENTS = {
     "guest": re.compile(r"Scene stutter guest present: frame=(\d+) gap_ms=([\d.]+)"),
     "host": re.compile(r"Scene stutter host present: id=(\d+) gap_ms=([\d.]+)"),
